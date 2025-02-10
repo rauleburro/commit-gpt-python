@@ -1,8 +1,28 @@
-import sys
-from dotenv import load_dotenv
-import pyperclip
+"""
+commit_generator.py
+
+This module provides functionality to generate and handle git commit messages using the OpenAI API. It retrieves the git diff, generates a commit message based on the diff, optionally allows the user to provide a custom commit prefix, combines the prefix and the generated message, copies the final commit message to the clipboard, prints the commit message to the screen, asks for user confirmation before performing the commit, and if confirmed, performs the git commit with the generated message.
+
+Modules:
+    os: Provides a way of using operating system dependent functionality.
+    sys: Provides access to some variables used or maintained by the interpreter and to functions that interact strongly with the interpreter.
+    subprocess: Allows you to spawn new processes, connect to their input/output/error pipes, and obtain their return codes.
+    pyperclip: A cross-platform clipboard module for Python.
+    dotenv: Reads key-value pairs from a .env file and can set them as environment variables.
+    openai: Provides access to the OpenAI API.
+
+Functions:
+    get_git_diff(): Obtains the changes with 'git diff --staged', excluding package-lock.json.
+    generate_commit_message(diff): Generates a commit message using the OpenAI API.
+    make_git_commit(message): Performs the Git commit.
+    main(): Main function to generate and handle git commit messages.
+
+"""
 import os
+import sys
 import subprocess
+import pyperclip
+from dotenv import load_dotenv
 from openai import OpenAI
 
 # Load environment variables from the .env file
@@ -31,7 +51,7 @@ def get_git_diff():
         return ""
 
 
-def generate_commit_message(diff, api_key):
+def generate_commit_message(diff):
     """Generates a commit message using the OpenAI API."""
     if not diff:
         return "No changes found."
@@ -68,12 +88,33 @@ def make_git_commit(message):
 
 
 def main():
+    """
+    Main function to generate and handle git commit messages.
+
+    This function performs the following steps:
+    1. Retrieves the git diff.
+    2. Generates a commit message based on the diff.
+    3. Optionally, allows the user to provide a custom commit prefix.
+    4. Combines the prefix and the generated message.
+    5. Copies the final commit message to the clipboard.
+    6. Prints the commit message to the screen.
+    7. Asks for user confirmation before performing the commit.
+    8. If confirmed, performs the git commit with the generated message.
+
+    If there are no changes to commit, it prints a warning and exits.
+
+    Args:
+        None
+
+    Returns:
+        None
+    """
     diff = get_git_diff()
     if not diff:
         print("⚠️ No changes to commit.")
         return
 
-    generated_commit_message = generate_commit_message(diff, api_key)
+    generated_commit_message = generate_commit_message(diff)
 
     # Ask the user for a custom commit prefix
     commit_prefix = " ".join(sys.argv[1:]) if len(sys.argv) > 1 else ""
