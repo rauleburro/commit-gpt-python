@@ -1,18 +1,24 @@
+import sys
 from dotenv import load_dotenv
 import pyperclip
 import os
 import subprocess
 from openai import OpenAI
 
-
-# Cargar las variables de entorno desde el archivo .env
+# Load environment variables from the .env file
 load_dotenv()
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+api_key = os.getenv("OPENAI_API_KEY")
+
+if not api_key:
+    print("❌ OpenAI API Key not found. Please ensure it's configured in the .env file.")
+    exit(1)
+
+client = OpenAI(api_key=api_key)
 
 
 def get_git_diff():
-    """Obtiene los cambios en git diff --staged, excluyendo package-lock.json."""
+    """Obtains the changes with 'git diff --staged', excluding package-lock.json."""
     try:
         result = subprocess.run(
             ['git', 'diff', '--staged', '--', '.',
@@ -21,70 +27,80 @@ def get_git_diff():
         )
         return result.stdout.strip()
     except subprocess.CalledProcessError as e:
-        print(f"Error al obtener los diffs: {e}")
+        print(f"Error obtaining diffs: {e}")
         return ""
 
 
 def generate_commit_message(diff, api_key):
-    """Genera un mensaje de commit usando la API de OpenAI."""
+    """Generates a commit message using the OpenAI API."""
     if not diff:
-        return "No se encontraron cambios en los archivos."
+        return "No changes found."
 
-    prompt = f"""Eres un asistente que genera mensajes de commit claros y concisos utilizando los estándares de GitHub.
-No solo dices qué se hizo, sino que intentas identificar los cambios y los archivos afectados. El mensaje debe estar en inglés.
+    prompt = f"""You are an assistant that generates clear and concise commit messages following GitHub standards.
+You not only describe what was done, but also identify the changes and the affected files. The commit message must be in English.
 
-Genera un mensaje de commit para el siguiente diff:
+Generate a commit message for the following diff:
 
 {diff}
 """
 
     try:
-        response = client.chat.completions.create(model="gpt-4o",
-                                                  messages=[
-                                                      {"role": "system", "content": prompt}],
-                                                  max_tokens=10000)
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "system", "content": prompt}],
+            max_tokens=10000
+        )
 
         commit_message = response.choices[0].message.content.strip()
-        return commit_message or "No se pudo generar un mensaje."
+        return commit_message or "Failed to generate a commit message."
     except Exception as e:
-        print(f"Error al generar el mensaje de commit: {e}")
-        return "Error al generar el mensaje."
+        print(f"Error generating commit message: {e}")
+        return "Error generating commit message."
 
 
 def make_git_commit(message):
-    """Realiza el commit en Git."""
+    """Performs the Git commit."""
     try:
         subprocess.run(['git', 'commit', '-m', message], check=True)
-        print("✅ Commit realizado con éxito.")
+        print("✅ Commit successfully made.")
     except subprocess.CalledProcessError as e:
-        print(f"❌ Error al realizar el commit: {e}")
+        print(f"❌ Error performing commit: {e}")
 
 
 def main():
-    # Cargar la API Key desde las variables de entorno
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        print("❌ No se encontró la API Key de OpenAI. Asegúrate de tenerla configurada en el archivo .env.")
-        return
-
     diff = get_git_diff()
     if not diff:
-        print("⚠️ No hay cambios para commitear.")
+        print("⚠️ No changes to commit.")
         return
 
-    commit_message = generate_commit_message(diff, api_key)
-    print(f"\n🔹 Mensaje generado: \"{commit_message}\"")
+    generated_commit_message = generate_commit_message(diff, api_key)
 
-    # Copiar mensaje al portapapeles
-    pyperclip.copy(commit_message)
-    print("📋 Mensaje copiado al portapapeles.")
+    # Ask the user for a custom commit prefix
+    commit_prefix = " ".join(sys.argv[1:]) if len(sys.argv) > 1 else ""
 
-    # Confirmación antes del commit
-    confirm = input("¿Deseas realizar el commit? (y/n): ").strip().lower()
-    if confirm == "y":
-        make_git_commit(commit_message)
+    # Combine the prefix and the generated message
+    if commit_prefix:
+        final_commit_message = f"{commit_prefix}\n\n{generated_commit_message}"
     else:
-        print("❌ Commit cancelado.")
+        final_commit_message = generated_commit_message
+
+    # Copy final commit message to clipboard
+    pyperclip.copy(final_commit_message)
+    print("📋 Commit message copied to clipboard.")
+
+    # Print the commit message to the screen
+    print("\nGenerated commit message:")
+    print("------------------------------------------------")
+    print(final_commit_message)
+    print("------------------------------------------------\n")
+
+    # Confirm before performing the commit
+    confirm = input(
+        "Do you want to perform the commit? (y/n): ").strip().lower()
+    if confirm == "y":
+        make_git_commit(final_commit_message)
+    else:
+        print("❌ Commit cancelled.")
 
 
 if __name__ == "__main__":
