@@ -38,11 +38,14 @@ client = OpenAI(api_key=api_key)
 
 
 def get_git_diff():
-    """Obtains the changes with 'git diff --staged', excluding package-lock.json."""
+    """Obtains the changes with 'git diff --staged', excluding package-lock.json, pnpm-lock.yaml, yarn.lock, and .svg files."""
     try:
         result = subprocess.run(
             ['git', 'diff', '--staged', '--', '.',
-                ':(exclude)package-lock.json'],
+                ':(exclude)package-lock.json',
+                ':(exclude)pnpm-lock.yaml',
+                ':(exclude)yarn.lock',
+                ':(exclude)*.svg'],
             capture_output=True, text=True, check=True
         )
         return result.stdout.strip()
