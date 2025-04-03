@@ -124,7 +124,7 @@ def main():
 
     # Combine the prefix and the generated message
     if commit_prefix:
-        final_commit_message = f"{commit_prefix}\n\n{generated_commit_message}"
+        final_commit_message = f"{commit_prefix}\t{generated_commit_message}"
     else:
         final_commit_message = generated_commit_message
 
