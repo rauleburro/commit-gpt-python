@@ -45,7 +45,11 @@ def get_git_diff():
                 ':(exclude)package-lock.json',
                 ':(exclude)pnpm-lock.yaml',
                 ':(exclude)yarn.lock',
-                ':(exclude)*.svg'],
+                ':(exclude)*.svg',
+                ':(exclude)*.snap',
+                ':(exclude)*.lock',
+             ],
+
             capture_output=True, text=True, check=True
         )
         return result.stdout.strip()
@@ -69,9 +73,9 @@ Generate a commit message for the following diff:
 
     try:
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4.1-nano",
             messages=[{"role": "system", "content": prompt}],
-            max_tokens=10000
+            max_tokens=30000
         )
 
         commit_message = response.choices[0].message.content.strip()
