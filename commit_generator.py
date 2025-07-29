@@ -73,9 +73,9 @@ Generate a commit message for the following diff:
 
     try:
         response = client.chat.completions.create(
-            model="gpt-4.1-nano",
+            model="gpt-4.1",
             messages=[{"role": "system", "content": prompt}],
-            max_tokens=30000
+            max_tokens=32768
         )
 
         commit_message = response.choices[0].message.content.strip()
