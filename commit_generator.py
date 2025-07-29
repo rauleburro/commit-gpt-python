@@ -18,6 +18,7 @@ Functions:
     main(): Main function to generate and handle git commit messages.
 
 """
+
 import os
 import sys
 import subprocess
@@ -29,9 +30,14 @@ from openai import OpenAI
 load_dotenv()
 
 api_key = os.getenv("OPENAI_API_KEY")
+model = os.getenv("OPENAI_MODEL")
+max_tokens = int(os.getenv("OPENAI_MAX_TOKENS"))
+temperature = float(os.getenv("OPENAI_TEMPERATURE"))
 
 if not api_key:
-    print("❌ OpenAI API Key not found. Please ensure it's configured in the .env file.")
+    print(
+        "❌ OpenAI API Key not found. Please ensure it's configured in the .env file."
+    )
     exit(1)
 
 client = OpenAI(api_key=api_key)
@@ -41,16 +47,22 @@ def get_git_diff():
     """Obtains the changes with 'git diff --staged', excluding package-lock.json, pnpm-lock.yaml, yarn.lock, and .svg files."""
     try:
         result = subprocess.run(
-            ['git', 'diff', '--staged', '--', '.',
-                ':(exclude)package-lock.json',
-                ':(exclude)pnpm-lock.yaml',
-                ':(exclude)yarn.lock',
-                ':(exclude)*.svg',
-                ':(exclude)*.snap',
-                ':(exclude)*.lock',
-             ],
-
-            capture_output=True, text=True, check=True
+            [
+                "git",
+                "diff",
+                "--staged",
+                "--",
+                ".",
+                ":(exclude)package-lock.json",
+                ":(exclude)pnpm-lock.yaml",
+                ":(exclude)yarn.lock",
+                ":(exclude)*.svg",
+                ":(exclude)*.snap",
+                ":(exclude)*.lock",
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
         )
         return result.stdout.strip()
     except subprocess.CalledProcessError as e:
@@ -63,19 +75,24 @@ def generate_commit_message(diff):
     if not diff:
         return "No changes found."
 
-    prompt = f"""You are an assistant that generates clear and concise commit messages following GitHub standards.
-You not only describe what was done, but also identify the changes and the affected files. The commit message must be in English.
+    prompt = f"""Generate a clear, concise commit message in English following conventional commit standards.
 
-Generate a commit message for the following diff:
+Analyze this diff and create a commit message that:
+- Describes the main change
+- Uses conventional commit format (feat/fix/docs/style/refactor/test/chore)
+- Is under 72 characters for the first line
+- Includes affected files if relevant
 
-{diff}
-"""
+Diff:
+{diff}"""
 
     try:
         response = client.chat.completions.create(
-            model="gpt-4.1",
+            model=model,
             messages=[{"role": "system", "content": prompt}],
-            max_tokens=32768
+            max_tokens=max_tokens,
+            temperature=temperature,
+            timeout=30,
         )
 
         commit_message = response.choices[0].message.content.strip()
@@ -88,7 +105,7 @@ Generate a commit message for the following diff:
 def make_git_commit(message):
     """Performs the Git commit."""
     try:
-        subprocess.run(['git', 'commit', '-m', message], check=True)
+        subprocess.run(["git", "commit", "-m", message], check=True)
         print("✅ Commit successfully made.")
     except subprocess.CalledProcessError as e:
         print(f"❌ Error performing commit: {e}")
@@ -143,8 +160,7 @@ def main():
     print("------------------------------------------------\n")
 
     # Confirm before performing the commit
-    confirm = input(
-        "Do you want to perform the commit? (y/n): ").strip().lower()
+    confirm = input("Do you want to perform the commit? (y/n): ").strip().lower()
     if confirm == "y":
         make_git_commit(final_commit_message)
     else:
